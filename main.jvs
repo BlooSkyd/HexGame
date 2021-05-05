@@ -1,0 +1,80 @@
+/*
+1) Affichage textuel d'une configuration saisie à la main (et donc lue par readInt ou readString ou insérée "en dur" dans le code de votre fonction).
+
+2) Lecture d'une configuration sauvegardée dans un fichier et affichage.
+
+3) Vérification qu'une configuration est gagnante pour l'un des joueurs.
+
+4) Faire joueur 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de référence lorsqu'on fait jouer deux IA et on vérifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
+
+5) Rejouer une partie sauvegardée -- affichage avec de la temporisation et/ou pauses.
+
+6) Implémenter une IA aléatoire et la faire jouer contre un humain (donc interaction avec l'utilisateur par print/read).
+
+7) Faire jouer une IA aléatoire contre un autre programme -- activité nécessitant la lecture formatée des coups joués par un autre programme.
+
+8 ) Implémenter une IA simple -- qui vérifie s'il y a un coup gagnant et le joue, ou qui empêche un coup gagnant de l'autre joueur.
+
+9) Implémenter une IA "valeur de position"
+
+10) Combiner plusieurs IA en une seule qui adapte son coup en fonction de la configuration.
+
+11) D'autres idées d'IA -- exemple : recherche d'une suite de 2 coups qui permettent de gagner, avec nécessité de mémoriser un coup intermédiaire.
+*/
+void main() {
+    Jeu jeu = new jeu()
+    jeu.taille = readInt("Saissez la taille de l'arene");
+    while (jeu.taille <= 1) {
+        jeu.taille = readInt("Saissez la taille de l'arene (2 ou plus)");
+    }
+    jeu.arene = new Cellule[jeu.taille][jeu.taille];
+    // Setup arène en créant les voisins
+    setupArene(jeu.arene, jeu.taille);
+}
+
+class Jeu {
+    int taille = 0;
+    Cellule[][] arene = null;
+    // Sauvegarde de l'historique ?
+}
+
+class Cellule {
+    int occupation; // 0: vide, 1: joueur 1, 2: joueur 2
+    Cellule voisins[] = null;
+    // Ajout d'un lien voisin connecté du joueur ?
+}
+
+void setupArene(Cellule[][] arene, int taille) { 
+    // On fixe les angles, et pour le reste on passe par setupCellule()
+    setupAngles();
+    for(int i = 0; i < taille; i++) {
+        for(int j = 0; j < taille; j++) {
+            if ((i != 0 && j != 0) || (i != taille && j != 0) || (i != taille && j != taille) || (i != 0 && j!= taille)) {
+                setupCellule(arene, i, j);
+            }
+        }
+    }
+}
+
+void setupAngles(Cellule[][] arene, int taille) {
+    // Ajouter docstring
+    arene[0][0].voisins = new Cellule[] {arene[1][0], arene[1][1], arene[0][1]};
+    arene[taille][0].voisins = new Cellule[] {arene[taille-1][0], arene[taille][1]};
+    arene[taille][taille].voisins = new Cellule[] {arene[taille][taille-1], arene[taille-1][taille-1], arene[taille-1][taille]};
+    arene[0][taille].voisins = new Cellule[] {arene[0][taille-1], arene[1][taille]};
+}
+
+void setupCellule(Cellule[][] arene, int i, int j) {
+    // Ajouter docstring
+    if(j == 0) { // Bord gauche
+        arene[i][0].voisins = new Cellule[] {arene[i+1][j], arene[i+1][j+1], arene[i][j+1], arene[i-1][j]};
+    } else if(j == taille) { // Bord droit
+        arene[i][taille].voisins = new Cellule[] {arene[i+1][j], arene[i][j-1], arene[i-1][j+1], arene[i-1][j]};
+    } else if(i == taille) { // Bord supérieur
+        arene[taille][j].voisins = new Cellule[] {arene[i][j-1], arene[i-1][j-1], arene[i-1][j], arene[i][j+1]};
+    } else if(i == 0) { // Bord inférieur
+        arene[0][j].voisins = new Cellule[] {arene[i][j-1], arene[i+1][j], arene[i+1][j+1], arene[i][j+1]};
+    } else { // Le reste
+        arene[i][j].voisins = new Cellule[] {arene[i+1][j], arene[i+1][j+1], arene[i][j+1], arene[i-1][j], arene[i-1][j+1], arene[i][j-1]};
+    }
+}
