@@ -1,13 +1,15 @@
 /*
-1) Affichage textuel d'une configuration saisie à la main (et donc lue par readInt ou readString ou insérée "en dur" dans le code de votre fonction).
-
-2) Lecture d'une configuration sauvegardée dans un fichier et affichage.
-
-3) Vérification qu'une configuration est gagnante pour l'un des joueurs.
-
-4) Faire joueur 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de référence lorsqu'on fait jouer deux IA et on vérifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
-
-5) Rejouer une partie sauvegardée -- affichage avec de la temporisation et/ou pauses.
+>>> Minimum syndical <<<
+>>>  1) Affichage textuel d'une configuration saisie à la main (et donc lue par readInt ou readString ou insérée "en dur" dans le code de votre fonction).
+>>>
+>>>  2) Lecture d'une configuration sauvegardée dans un fichier et affichage.
+>>>
+>>>  3) Vérification qu'une configuration est gagnante pour l'un des joueurs.
+>>>
+>>>  4) Faire joueur 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de référence lorsqu'on fait jouer deux IA et on vérifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
+>>>
+>>>  5) Rejouer une partie sauvegardée -- affichage avec de la temporisation et/ou pauses.
+>>> Minimum syndical <<<
 
 6) Implémenter une IA aléatoire et la faire jouer contre un humain (donc interaction avec l'utilisateur par print/read).
 
@@ -22,59 +24,155 @@
 11) D'autres idées d'IA -- exemple : recherche d'une suite de 2 coups qui permettent de gagner, avec nécessité de mémoriser un coup intermédiaire.
 */
 void main() {
-    Jeu jeu = new jeu()
-    jeu.taille = readInt("Saissez la taille de l'arene");
-    while (jeu.taille <= 1) {
-        jeu.taille = readInt("Saissez la taille de l'arene (2 ou plus)");
+    TAILLE = 9; //setupTaille();
+    DEMANDCONFIRM = false; //doConfirmation();
+    ERREURAUTORISEE = true; //doErreur();
+    Jeu partie = new Jeu();
+    partie.arene = new int[TAILLE][TAILLE];
+    partie.joueur = 1; // voir pour définir le joueur en aléatoire
+    partie.coupActuel.numero = 0; // Correspond à partie.tour
+    partie.coupActuel.joueur = partie.joueur;
+    while(partie.fonctionne) {
+        majEcran(partie, "C'est au joueur "+partie.joueur+" de commencer !");
+        placement(partie);
     }
-    jeu.arene = new Cellule[jeu.taille][jeu.taille];
-    // Setup arène en créant les voisins
-    setupArene(jeu.arene, jeu.taille);
 }
-
 class Jeu {
-    int taille = 0;
-    Cellule[][] arene = null;
-    // Sauvegarde de l'historique ?
+    int[][] arene;
+    int joueur;
+    int config = 0; // 0: Humain vs Humain, 1: Humain vs IA, 2: IA vs IA (lecture)
+    boolean fonctionne = true;
+    int tour = 0;
+    Coup[] historique;
+    Coup coupActuel = new Coup();
 }
 
-class Cellule {
-    int occupation; // 0: vide, 1: joueur 1, 2: joueur 2
-    Cellule voisins[] = null;
-    // Ajout d'un lien voisin connecté du joueur ?
+class Coup {
+    int joueur;
+    int numero;
+    int li = -1;
+    int col = -1;
 }
 
-void setupArene(Cellule[][] arene, int taille) { 
-    // On fixe les angles, et pour le reste on passe par setupCellule()
-    setupAngles();
-    for(int i = 0; i < taille; i++) {
-        for(int j = 0; j < taille; j++) {
-            if ((i != 0 && j != 0) || (i != taille && j != 0) || (i != taille && j != taille) || (i != 0 && j!= taille)) {
-                setupCellule(arene, i, j);
+////////// Fonctions d'initialisation //////////
+int TAILLE;
+boolean DEMANDCONFIRM;
+boolean ERREURAUTORISEE;
+
+int setupTaille() {
+    int taille = readInt("Saissez la taille de l'arene");
+    while (taille <= 1) {
+        taille = readInt("Saissez la taille de l'arene (2 ou plus)");
+    }
+    return taille;
+}
+
+boolean doConfirmation() {
+    String c = readString("Confirmer le coup avant de joueur ?\noui / non");
+    while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
+        c = readString("Confirmer le coup avant de joueur ?\noui / non");
+    }
+    if (equal(c, "oui")) return true;
+    else return false;
+}
+
+boolean doErreur() {
+    String c = readString("Jouer un coup illegal est eliminatoire ?\noui / non");
+    while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
+        c = readString("Jouer un coup illegal est eliminatoire ?\noui / non");
+    }
+    if (equal(c, "oui")) return true;
+    else return false;
+}
+////// Fin des fonctions d'initialisation //////
+
+void afficherArene(Jeu partie) {
+    print("  ");
+    for(int i = 1; i < TAILLE+1; i++){
+        print(i);
+        if(i != TAILLE) print(" ");
+    }
+    println();
+    String inc = " ";
+    for (int i = 0; i < TAILLE; i++) {
+        print((i+1)+""+inc);
+        for (int j = 0; j < TAILLE; j++) {
+            if (i == partie.coupActuel.li && j == partie.coupActuel.col) {
+                print("X");
+            } else {
+                print(partie.arene[i][j]);
             }
+            if (j != TAILLE - 1) print(" ");
         }
+        println();
+        inc += " ";
     }
 }
 
-void setupAngles(Cellule[][] arene, int taille) {
-    // Ajouter docstring
-    arene[0][0].voisins = new Cellule[] {arene[1][0], arene[1][1], arene[0][1]};
-    arene[taille][0].voisins = new Cellule[] {arene[taille-1][0], arene[taille][1]};
-    arene[taille][taille].voisins = new Cellule[] {arene[taille][taille-1], arene[taille-1][taille-1], arene[taille-1][taille]};
-    arene[0][taille].voisins = new Cellule[] {arene[0][taille-1], arene[1][taille]};
+void placement(Jeu partie) {
+    if(DEMANDCONFIRM) {
+        coupAvecConfirm(partie);
+    } else {
+        partie.coupActuel.col = readInt("[Joueur "+partie.joueur+"]\nEntrez la colonne")-1;
+        partie.coupActuel.li = readInt("[Joueur "+partie.joueur+"]\nEntrez la ligne")-1;
+    }
+    afficherArene(partie);
+    jouerCoup(partie, partie.coupActuel);
 }
 
-void setupCellule(Cellule[][] arene, int i, int j) {
-    // Ajouter docstring
-    if(j == 0) { // Bord gauche
-        arene[i][0].voisins = new Cellule[] {arene[i+1][j], arene[i+1][j+1], arene[i][j+1], arene[i-1][j]};
-    } else if(j == taille) { // Bord droit
-        arene[i][taille].voisins = new Cellule[] {arene[i+1][j], arene[i][j-1], arene[i-1][j+1], arene[i-1][j]};
-    } else if(i == taille) { // Bord supérieur
-        arene[taille][j].voisins = new Cellule[] {arene[i][j-1], arene[i-1][j-1], arene[i-1][j], arene[i][j+1]};
-    } else if(i == 0) { // Bord inférieur
-        arene[0][j].voisins = new Cellule[] {arene[i][j-1], arene[i+1][j], arene[i+1][j+1], arene[i][j+1]};
-    } else { // Le reste
-        arene[i][j].voisins = new Cellule[] {arene[i+1][j], arene[i+1][j+1], arene[i][j+1], arene[i-1][j], arene[i-1][j+1], arene[i][j-1]};
+void coupAvecConfirm(Jeu partie) {
+    boolean confirmed = false;
+    while(confirmed == false) {
+        partie.coupActuel.li = readInt("[Joueur "+partie.joueur+"]\nEntrez la ligne")-1;
+        partie.coupActuel.col = readInt("[Joueur "+partie.joueur+"]\nEntrez la colonne")-1;
+        confirmed = getConfirm(partie); // Voir code plus bas
     }
+}
+
+boolean getConfirm(Jeu partie) {
+    majEcran(partie, "Votre coup est affiche a l'ecran avec un 'X'");
+    String s = readString("[Joueur "+partie.joueur+"]\nConfirmer le coup en L"+partie.coupActuel.li+",C"+partie.coupActuel.col+" ? (oui / non)\n=> Votre position est affichee sur le plateau");
+    boolean confirm = false;
+    while(equal(s,"oui") && equal(s,"non")){
+        s = readString("Joueur {joueur}\nConfirmer le coup ?\n(Y pour oui / n pour non)\nVoir position sur plateau");
+    }
+    if(equal(s,"oui")) confirm = true;
+    return confirm;
+}
+
+void majEcran(Jeu partie, String s){
+    clear();
+    afficherArene(partie);
+    println(s); // balise: fonction bloc d'affichage
+    sleep(500);
+}
+
+void jouerCoup(Jeu partie, Coup coup) {
+    if (estValide(partie.arene, partie.coupActuel.li, partie.coupActuel.col)) { //Si valide
+        partie.arene[coup.li][coup.col] = partie.joueur;
+        //addHistory(coup); // Ajout historique
+        partie.joueur = 3 - partie.joueur;
+        partie.tour += 1;
+        majEcran(partie, "Coup enregister, au tour du joueur suivant"); // balise: fonction bloc d'affichage
+        nouveauTour(partie);
+    } else if (ERREURAUTORISEE) { // defaite auto y/n
+        partie.coupActuel.li = -1;
+        partie.coupActuel.col = -1;
+        majEcran(partie, "Joueur "+partie.joueur+", le coup que vous avez saisi est invalide.\nVeuillez recommencer !");
+        placement(partie);
+    } else {
+        partie.fonctionne = false;
+        majEcran(partie, "Le dernier coup saisi par le joueur "+partie.joueur+" est invalide.\nLe joueur "+(3-partie.joueur)+" gagne la partie !");
+    }
+}
+
+boolean estValide(int[][] arene, int li, int col) {
+    if (arene[li][col] != 0) return false;
+    else return true;
+}
+
+void nouveauTour(Jeu partie) {
+    Coup coup = new Coup();
+    coup.joueur = partie.joueur;
+    coup.numero = partie.tour;
 }
