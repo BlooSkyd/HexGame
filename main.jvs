@@ -1,49 +1,52 @@
-/*
+/* coding: ISO 8859-15
 >>> Minimum syndical <<<
->>>  1) Affichage textuel d'une configuration saisie Ã  la main (et donc lue par readInt ou readString ou insÃ©rÃ©e "en dur" dans le code de votre fonction).
+>>>  1) Affichage textuel d'une configuration saisie à la main (et donc lue par readInt ou readString ou insérée "en dur" dans le code de votre fonction).
 >>>
->>>  2) Lecture d'une configuration sauvegardÃ©e dans un fichier et affichage.
+>>>  2) Lecture d'une configuration sauvegardée dans un fichier et affichage.
 >>>
->>>  3) VÃ©rification qu'une configuration est gagnante pour l'un des joueurs.
+>>>  3) Vérification qu'une configuration est gagnante pour l'un des joueurs.
 >>>
->>>  4) Faire joueur 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de rÃ©fÃ©rence lorsqu'on fait jouer deux IA et on vÃ©rifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
+>>>  4) Faire joueur 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de référence lorsqu'on fait jouer deux IA et on vérifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
 >>>
->>>  5) Rejouer une partie sauvegardÃ©e -- affichage avec de la temporisation et/ou pauses.
+>>>  5) Rejouer une partie sauvegardée -- affichage avec de la temporisation et/ou pauses.
 >>> Minimum syndical <<<
 
-6) ImplÃ©menter une IA alÃ©atoire et la faire jouer contre un humain (donc interaction avec l'utilisateur par print/read).
+6) Implémenter une IA aléatoire et la faire jouer contre un humain (donc interaction avec l'utilisateur par print/read).
 
-7) Faire jouer une IA alÃ©atoire contre un autre programme -- activitÃ© nÃ©cessitant la lecture formatÃ©e des coups jouÃ©s par un autre programme.
+7) Faire jouer une IA aléatoire contre un autre programme -- activité nécessitant la lecture formatée des coups joués par un autre programme.
 
-8 ) ImplÃ©menter une IA simple -- qui vÃ©rifie s'il y a un coup gagnant et le joue, ou qui empÃªche un coup gagnant de l'autre joueur.
+8 ) Implémenter une IA simple -- qui vérifie s'il y a un coup gagnant et le joue, ou qui empêche un coup gagnant de l'autre joueur.
 
-9) ImplÃ©menter une IA "valeur de position"
+9) Implémenter une IA "valeur de position"
 
 10) Combiner plusieurs IA en une seule qui adapte son coup en fonction de la configuration.
 
-11) D'autres idÃ©es d'IA -- exemple : recherche d'une suite de 2 coups qui permettent de gagner, avec nÃ©cessitÃ© de mÃ©moriser un coup intermÃ©diaire.
+11) D'autres idées d'IA -- exemple : recherche d'une suite de 2 coups qui permettent de gagner, avec nécessité de mémoriser un coup intermédiaire.
 */
 void main() {
-    TAILLE = 9; //setupTaille();
-    DEMANDCONFIRM = false; //doConfirmation();
-    ERREURAUTORISEE = true; //doErreur();
+    TAILLE = 11; // setupTaille();
+    DEMANDCONFIRM = true; // doConfirmation();
+    ERREURAUTORISEE = true; // doErreur();
+    SWAP = true; // doSwap();
     Jeu partie = new Jeu();
     partie.arene = new int[TAILLE][TAILLE];
-    partie.joueur = 1; // voir pour dÃ©finir le joueur en alÃ©atoire
-    partie.coupActuel.numero = 0; // Correspond Ã  partie.tour
+    partie.joueur = 1; // voir pour définir le joueur en aléatoire
+    partie.coupActuel.numero = 0; // Correspond à partie.tour
     partie.coupActuel.joueur = partie.joueur;
-    while(partie.fonctionne) {
-        majEcran(partie, "C'est au joueur "+partie.joueur+" de commencer !");
-        placement(partie);
+    while (partie.fonctionne) {
+        majEcran(partie, "C'est au joueur " + partie.joueur + " de commencer !");
+        if (partie.tour == 2 && SWAP) swap(partie);
+        else placement(partie);
     }
 }
+
 class Jeu {
     int[][] arene;
     int joueur;
     int config = 0; // 0: Humain vs Humain, 1: Humain vs IA, 2: IA vs IA (lecture)
     boolean fonctionne = true;
-    int tour = 0;
-    Coup[] historique;
+    int tour = 1;
+    Coup[] historique; // Voir pour sauvegarder directement dans un fichier .coup
     Coup coupActuel = new Coup();
 }
 
@@ -52,21 +55,25 @@ class Coup {
     int numero;
     int li = -1;
     int col = -1;
+    boolean isConfirmed = !DEMANDCONFIRM;
 }
 
 ////////// Fonctions d'initialisation //////////
 int TAILLE;
 boolean DEMANDCONFIRM;
 boolean ERREURAUTORISEE;
+boolean SWAP;
 
+// Demande à l'utilisateur une taille valide (supérieur à 1)
 int setupTaille() {
-    int taille = readInt("Saissez la taille de l'arene");
+    int taille = readInt("Saissez la taille de l'arêne");
     while (taille <= 1) {
-        taille = readInt("Saissez la taille de l'arene (2 ou plus)");
+        taille = readInt("Saissez la taille de l'arêne (2 ou plus)");
     }
     return taille;
 }
 
+// Demande à l'utilisateur si l'on doit confirmer les coups
 boolean doConfirmation() {
     String c = readString("Confirmer le coup avant de joueur ?\noui / non");
     while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
@@ -76,28 +83,39 @@ boolean doConfirmation() {
     else return false;
 }
 
+// Demande à l'utilisateur si les erreurs sont autorisées
 boolean doErreur() {
-    String c = readString("Jouer un coup illegal est eliminatoire ?\noui / non");
+    String c = readString("Jouer un coup illégal est eliminatoire ?\noui / non");
     while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
-        c = readString("Jouer un coup illegal est eliminatoire ?\noui / non");
+        c = readString("Jouer un coup illégal est éliminatoire ?\noui / non");
+    }
+    if (equal(c, "oui")) return true;
+    else return false;
+}
+
+// Demande à l'utilisateur si la règle du swap est activé
+boolean doSwap() {
+    String c = readString("Autoriser le swap ?\noui / non");
+    while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
+        c = readString("Autoriser le swap ?\noui / non");
     }
     if (equal(c, "oui")) return true;
     else return false;
 }
 ////// Fin des fonctions d'initialisation //////
 
+// Affiche l'arene avec échelles. Les cases vides sont des 0, 1 et 2 les pions de leur joueur
+// respectif, et X un coup temporaire avant sa confirmation.
 void afficherArene(Jeu partie) {
-    print("  ");
-    for(int i = 1; i < TAILLE+1; i++){
-        print(i);
-        if(i != TAILLE) print(" ");
-    }
+    //println("P: "+partie.coupActuel.joueur+", L: "+(partie.coupActuel.li+1)+", C: "+(partie.coupActuel.col+1)+" => "+partie.coupActuel.isConfirmed);
+    for (int i = 1; i < TAILLE + 1; i++) print(" " + i);
     println();
-    String inc = " ";
     for (int i = 0; i < TAILLE; i++) {
-        print((i+1)+""+inc);
+        print(marge(i + 1));
         for (int j = 0; j < TAILLE; j++) {
-            if (i == partie.coupActuel.li && j == partie.coupActuel.col) {
+            if (i == partie.coupActuel.li
+                    && j == partie.coupActuel.col
+                    && !partie.coupActuel.isConfirmed) {
                 print("X");
             } else {
                 print(partie.arene[i][j]);
@@ -105,74 +123,147 @@ void afficherArene(Jeu partie) {
             if (j != TAILLE - 1) print(" ");
         }
         println();
-        inc += " ";
     }
 }
 
+// Créé un string de la longueur nécéssaire pour afficher le plateau en losange.
+// Corrige le problème avec les entiers > 9
+String marge(int i) {
+    String res = "" + i;
+    while (stringLength(res) < i + 1) res += " ";
+    return res;
+}
+
+// Efectue la règle du swap si le joueur 2 veut le faire
+void swap(Jeu partie) {
+    if (wantSwap()) {
+        replacePos(partie);
+        // addHistory(coup); // Ajout historique
+        partie.joueur = 3 - partie.joueur;
+        partie.tour += 1;
+        majEcran(partie, "Coup enregisté, au tour du joueur suivant");
+        nouveauTour(partie);
+    } else placement(partie);
+}
+
+// Demande au joueur 2 s'il souhaite swap
+boolean wantSwap() {
+    String c = readString("Le swap est autorisé, voulez-vous le faire ?\noui / non");
+    while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
+        c = readString("Le swap est autorisé, voulez-vous le faire ?\noui / non");
+    }
+    if (equal(c, "oui")) return true;
+    else return false;
+}
+
+// Change le coup du joueur un par un pion du joueur 2 lors du swap
+void replacePos(Jeu partie) {
+    for (int i = 0; i < partie.arene.length; i++) {
+        for (int j = 0; j < partie.arene[0].length; j++) {
+            if (partie.arene[i][j] != 0) partie.arene[i][j] = partie.joueur;
+        }
+    }
+}
+
+// Demande les coordonnées du coup au jour
 void placement(Jeu partie) {
-    if(DEMANDCONFIRM) {
-        coupAvecConfirm(partie);
-    } else {
-        partie.coupActuel.col = readInt("[Joueur "+partie.joueur+"]\nEntrez la colonne")-1;
-        partie.coupActuel.li = readInt("[Joueur "+partie.joueur+"]\nEntrez la ligne")-1;
+    if (DEMANDCONFIRM) coupAvecConfirm(partie);
+    else {
+        partie.coupActuel.col =
+                readInt("[Joueur " + partie.joueur + "]\nEntrez la colonne") - 1;
+        partie.coupActuel.li = readInt("[Joueur " + partie.joueur + "]\nEntrez la ligne") - 1;
     }
-    afficherArene(partie);
-    jouerCoup(partie, partie.coupActuel);
+    if (!coupValide(partie.coupActuel)) {
+        print("/!\\ Le coup saisi est en dehors du plateau, veuillez recommencer.");
+        placement(partie);
+    } else {
+        afficherArene(partie);
+        jouerCoup(partie, partie.coupActuel);
+    }
 }
 
+// Vérifie que les coups sont "valides", à savoir dans l'arène
+boolean coupValide(Coup coup) {
+    if (coup.li < 0 || coup.li > TAILLE - 1 || coup.col < 0 || coup.col > TAILLE - 1)
+        return false;
+    else return true;
+}
+
+// Attend la confirmation du joueur avant de sauvegarder les coordonnées
 void coupAvecConfirm(Jeu partie) {
     boolean confirmed = false;
-    while(confirmed == false) {
-        partie.coupActuel.li = readInt("[Joueur "+partie.joueur+"]\nEntrez la ligne")-1;
-        partie.coupActuel.col = readInt("[Joueur "+partie.joueur+"]\nEntrez la colonne")-1;
+    while (confirmed == false) {
+        partie.coupActuel.li = readInt("[Joueur " + partie.joueur + "]\nEntrez la ligne") - 1;
+        partie.coupActuel.col =
+                readInt("[Joueur " + partie.joueur + "]\nEntrez la colonne") - 1;
         confirmed = getConfirm(partie); // Voir code plus bas
     }
 }
 
+// Demande la confirmation du coup au joueur
 boolean getConfirm(Jeu partie) {
-    majEcran(partie, "Votre coup est affiche a l'ecran avec un 'X'");
-    String s = readString("[Joueur "+partie.joueur+"]\nConfirmer le coup en L"+partie.coupActuel.li+",C"+partie.coupActuel.col+" ? (oui / non)\n=> Votre position est affichee sur le plateau");
+    majEcran(
+            partie,
+            "Votre coup est affiché à l'écran avec un 'X'\nSi vous ne voyez pas de 'X', c'est que votre coup doit être en dehors du plateau.");
+    String msg = "[Joueur " + partie.joueur+ "]\nConfirmer le coup en L"+ (partie.coupActuel.li + 1)+ ",C" + (partie.coupActuel.col + 1)+ " ? (oui / non)\n=> Votre position est affichée sur le plateau";
+    String s = readString(msg);
     boolean confirm = false;
-    while(equal(s,"oui") && equal(s,"non")){
-        s = readString("Joueur {joueur}\nConfirmer le coup ?\n(Y pour oui / n pour non)\nVoir position sur plateau");
+    while (equal(s, "oui") && equal(s, "non")) {
+        s = readString(msg);
     }
-    if(equal(s,"oui")) confirm = true;
+    if (equal(s, "oui")) confirm = true;
+    partie.coupActuel.isConfirmed = confirm;
     return confirm;
 }
 
-void majEcran(Jeu partie, String s){
+// Met à jour l'écran en envoyant un message en même temps
+void majEcran(Jeu partie, String s) {
     clear();
     afficherArene(partie);
     println(s); // balise: fonction bloc d'affichage
-    sleep(500);
+    sleep(250);
 }
 
+// Joue le coup s'il est valide et poursuit la partie, sinon l'annule ou le met fin à la partie
+// dépendant des paramètres
 void jouerCoup(Jeu partie, Coup coup) {
-    if (estValide(partie.arene, partie.coupActuel.li, partie.coupActuel.col)) { //Si valide
+    if (estValide(partie.arene, coup.li, coup.col)) { // Si valide
         partie.arene[coup.li][coup.col] = partie.joueur;
-        //addHistory(coup); // Ajout historique
+        // addHistory(coup); // Ajout historique
         partie.joueur = 3 - partie.joueur;
         partie.tour += 1;
-        majEcran(partie, "Coup enregister, au tour du joueur suivant"); // balise: fonction bloc d'affichage
+        majEcran(partie, "Coup enregisté, au tour du joueur suivant");
         nouveauTour(partie);
     } else if (ERREURAUTORISEE) { // defaite auto y/n
-        partie.coupActuel.li = -1;
-        partie.coupActuel.col = -1;
-        majEcran(partie, "Joueur "+partie.joueur+", le coup que vous avez saisi est invalide.\nVeuillez recommencer !");
+        coup.li = -1;
+        coup.col = -1;
+        majEcran(
+                partie,
+                "Joueur "
+                        + partie.joueur
+                        + ", le coup que vous avez saisi est invalide.\nVeuillez recommencer !");
         placement(partie);
     } else {
         partie.fonctionne = false;
-        majEcran(partie, "Le dernier coup saisi par le joueur "+partie.joueur+" est invalide.\nLe joueur "+(3-partie.joueur)+" gagne la partie !");
+        majEcran(
+                partie,
+                "Le dernier coup saisi par le joueur "
+                        + partie.joueur
+                        + " est invalide.\nLe joueur "
+                        + (3 - partie.joueur)
+                        + " gagne la partie !");
     }
 }
 
+// Vérifie si le coup est valide (pas jouer sur une case déjà prise)
 boolean estValide(int[][] arene, int li, int col) {
     if (arene[li][col] != 0) return false;
     else return true;
 }
 
+// Génère un nouveau coup
 void nouveauTour(Jeu partie) {
-    Coup coup = new Coup();
-    coup.joueur = partie.joueur;
-    coup.numero = partie.tour;
+    partie.coupActuel = new Coup();
+    partie.coupActuel.joueur = partie.joueur;
+    partie.coupActuel.numero = partie.tour;
 }
