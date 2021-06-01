@@ -1,14 +1,14 @@
 /* coding: ISO 8859-15
 >>> Minimum syndical <<<
->>>  1) Affichage textuel d'une configuration saisie à la main (et donc lue par readInt ou readString ou insérée "en dur" dans le code de votre fonction).
+>>> f 1) Affichage textuel d'une configuration saisie à la main (et donc lue par readInt ou readString ou insérée "en dur" dans le code de votre fonction).
 >>>
 >>>  2) Lecture d'une configuration sauvegardée dans un fichier et affichage.
 >>>
 >>>  3) Vérification qu'une configuration est gagnante pour l'un des joueurs.
 >>>
->>>  4) Faire joueur 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de référence lorsqu'on fait jouer deux IA et on vérifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
+>>> f 4) Faire jouer 2 humains et sauvegarder la suite des coups (par exemple pour rejouer la partie plus tard, mais aussi pour servir de référence lorsqu'on fait jouer deux IA et on vérifie qu'il n'y a pas de triche lorsqu'une des deux signale qu'elle est gagnante !).
 >>>
->>>  5) Rejouer une partie sauvegardée -- affichage avec de la temporisation et/ou pauses.
+>>> f 5) Rejouer une partie sauvegardée -- affichage avec de la temporisation et/ou pauses.
 >>> Minimum syndical <<<
 
 6) Implémenter une IA aléatoire et la faire jouer contre un humain (donc interaction avec l'utilisateur par print/read).
@@ -24,19 +24,26 @@
 11) D'autres idées d'IA -- exemple : recherche d'une suite de 2 coups qui permettent de gagner, avec nécessité de mémoriser un coup intermédiaire.
 */
 void main() {
-    TAILLE = 11; // setupTaille();
-    DEMANDCONFIRM = true; // doConfirmation();
-    ERREURAUTORISEE = true; // doErreur();
-    SWAP = true; // doSwap();
-    Jeu partie = new Jeu();
-    partie.arene = new int[TAILLE][TAILLE];
-    partie.joueur = 1; // voir pour définir le joueur en aléatoire
-    partie.coupActuel.numero = 0; // Correspond à partie.tour
-    partie.coupActuel.joueur = partie.joueur;
-    while (partie.fonctionne) {
-        majEcran(partie, "C'est au joueur " + partie.joueur + " de commencer !");
-        if (partie.tour == 2 && SWAP) swap(partie);
-        else placement(partie);
+    setupGame();
+    Jeu partie = new Jeu(TAILLE);
+    setupPlayers(partie);
+    if (LECTURE) {
+        playSavedGame(
+                partie,
+                readString(
+                        "Veuillez saisir le nom du fichier à lire (sans son extension)\nFormat : nomDuFichier.game"));
+    } else {
+        partie.historique =
+                new String[(TAILLE * TAILLE) + 1]; // Un coup par cellule, +1 avec le swap
+        partie.joueur = 1; // voir pour définir le joueur en aléatoire
+        partie.coupActuel.numero = 0; // Correspond à partie.tour
+        partie.coupActuel.joueur = partie.joueur;
+        while (partie.fonctionne) {
+            majEcran(partie, "C'est au joueur " + partie.joueur + " de jouer !");
+            if (SWAP && partie.tour == 1)
+                swap(partie); // Revient au 2e tour, mais tour start = 0 par simplification e/s
+            else placement(partie);
+        }
     }
 }
 
@@ -45,9 +52,16 @@ class Jeu {
     int joueur;
     int config = 0; // 0: Humain vs Humain, 1: Humain vs IA, 2: IA vs IA (lecture)
     boolean fonctionne = true;
-    int tour = 1;
-    Coup[] historique; // Voir pour sauvegarder directement dans un fichier .coup
+    int tour = 0; // On commmence les tours à 0 pour se simplifier l'usage des fichiers
+    String[] historique; // Voir pour sauvegarder directement dans un fichier .coup
     Coup coupActuel = new Coup();
+
+    Jeu(int taille) {
+        this.arene = new int[taille][taille];
+    }
+
+    Player playerOne = new Player();
+    Player playerTwo = new Player();
 }
 
 class Coup {
@@ -58,11 +72,39 @@ class Coup {
     boolean isConfirmed = !DEMANDCONFIRM;
 }
 
+class Player {
+    int[][] grid;
+    int counter = 1;
+    int[] firstLine;
+}
+
 ////////// Fonctions d'initialisation //////////
 int TAILLE;
+boolean LECTURE;
+int DELAIS;
+boolean ENRESITRERPARTIE;
+String FICHIER;
 boolean DEMANDCONFIRM;
 boolean ERREURAUTORISEE;
 boolean SWAP;
+
+// Initialise la partie en éxécutant chaque fonction d'initialisation
+void setupGame() {
+    TAILLE = 11; // setupTaille();
+    LECTURE = false; // doLecture();
+    if (LECTURE) {
+        DELAIS = 800; // askDelais();
+        ENRESITRERPARTIE = false;
+    } else {
+        ENRESITRERPARTIE = true; // doEnregister();
+        if (ENRESITRERPARTIE) {
+            FICHIER = "partie"; // askFichier();
+        }
+        DEMANDCONFIRM = false; // doConfirmation();
+        ERREURAUTORISEE = true; // doErreur();
+        SWAP = true; // doSwap();
+    }
+}
 
 // Demande à l'utilisateur une taille valide (supérieur à 1)
 int setupTaille() {
@@ -73,11 +115,50 @@ int setupTaille() {
     return taille;
 }
 
+// Demande à l'utilisateur s'il y a une partie à lire ou non
+boolean doLecture() {
+    String s = "Lire une partie enregistrée ?\noui / non";
+    String c = readString(s);
+    while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
+        c = readString("[Données saisies incorrectes]\n" + s);
+    }
+    if (equal(c, "oui")) return true;
+    else return false;
+}
+
+// Demande à l'utilisateur le délais qu'il souhaite avoir entre chaque coup lors d'une lecture
+int askDelais() {
+    int delais =
+            readInt(
+                    "Veuillez saisir le délais en milliseconde entre chaque coup\nEx: 1000 ms = 1s / 500 ms = 0,5s");
+    return delais;
+}
+
+// Demande à l'utilisateur si l'on doit enregistrer la partie ou non
+boolean doEnregister() {
+    String s = "Enregistrer la partie ?\noui / non";
+    String c = readString(s);
+    while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
+        c = readString("[Données saisies incorrectes]\n" + s);
+    }
+    if (equal(c, "oui")) return true;
+    else return false;
+}
+
+// demande à l'utilisateur le nom du fichier lorsque l'on doit enregistrer la partie
+String askFichier() {
+    String s =
+            readString(
+                    "Veuillez saisir le nom du fichier dans lequel sauvegarder la partie (sans son extension)\nFormat : nomDuFichier.game");
+    return s;
+}
+
 // Demande à l'utilisateur si l'on doit confirmer les coups
 boolean doConfirmation() {
-    String c = readString("Confirmer le coup avant de joueur ?\noui / non");
+    String s = "Confirmer le coup avant de joueur ?\noui / non";
+    String c = readString(s);
     while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
-        c = readString("Confirmer le coup avant de joueur ?\noui / non");
+        c = readString("[Données saisies incorrectes]\n" + s);
     }
     if (equal(c, "oui")) return true;
     else return false;
@@ -85,33 +166,45 @@ boolean doConfirmation() {
 
 // Demande à l'utilisateur si les erreurs sont autorisées
 boolean doErreur() {
-    String c = readString("Jouer un coup illégal est eliminatoire ?\noui / non");
+    String s = "Jouer un coup illégal est eliminatoire ?\noui / non";
+    String c = readString(s);
     while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
-        c = readString("Jouer un coup illégal est éliminatoire ?\noui / non");
+        c = readString("[Données saisies incorrectes]\n" + s);
     }
     if (equal(c, "oui")) return true;
     else return false;
 }
 
-// Demande à l'utilisateur si la règle du swap est activé
+// Demande à l'utilisateur si la règle du swap est activée
 boolean doSwap() {
-    String c = readString("Autoriser le swap ?\noui / non");
+    String s = "Autoriser le swap ?\noui / non";
+    String c = readString(s);
     while (!stringEqual(c, "oui") && !stringEqual(c, "non")) {
-        c = readString("Autoriser le swap ?\noui / non");
+        c = readString("[Données saisies incorrectes]\n" + s);
     }
     if (equal(c, "oui")) return true;
     else return false;
 }
+
+// Initialise la taille des tableaux de playerOne et playerTwo
+void setupPlayers(Jeu partie) {
+    partie.playerOne.grid = new int[TAILLE][TAILLE];
+    partie.playerOne.firstLine = new int[TAILLE];
+    partie.playerTwo.grid = new int[TAILLE][TAILLE];
+    partie.playerTwo.firstLine = new int[TAILLE];
+}
+
 ////// Fin des fonctions d'initialisation //////
 
 // Affiche l'arene avec échelles. Les cases vides sont des 0, 1 et 2 les pions de leur joueur
 // respectif, et X un coup temporaire avant sa confirmation.
 void afficherArene(Jeu partie) {
-    //println("P: "+partie.coupActuel.joueur+", L: "+(partie.coupActuel.li+1)+", C: "+(partie.coupActuel.col+1)+" => "+partie.coupActuel.isConfirmed);
+    // println("P: "+partie.coupActuel.joueur+", L: "+(partie.coupActuel.li+1)+", C:
+    // "+(partie.coupActuel.col+1)+" => "+partie.coupActuel.isConfirmed);
     for (int i = 1; i < TAILLE + 1; i++) print(" " + i);
     println();
     for (int i = 0; i < TAILLE; i++) {
-        print(marge(i + 1));
+        print(marge(i + 1, true));
         for (int j = 0; j < TAILLE; j++) {
             if (i == partie.coupActuel.li
                     && j == partie.coupActuel.col
@@ -121,27 +214,39 @@ void afficherArene(Jeu partie) {
                 print(partie.arene[i][j]);
             }
             if (j != TAILLE - 1) print(" ");
+            else if (i != TAILLE / 2) print(" \\");
+            else print(" 2");
         }
         println();
     }
+    print(marge(TAILLE, false));
+    for (int i = 0; i < TAILLE; i++) {
+        if (i == TAILLE / 2) print(" 1");
+        else print(" -");
+    }
+    println();
 }
 
 // Créé un string de la longueur nécéssaire pour afficher le plateau en losange.
 // Corrige le problème avec les entiers > 9
-String marge(int i) {
-    String res = "" + i;
+String marge(int i, boolean d) {
+    String res = "";
+    if (d) res += "" + i;
     while (stringLength(res) < i + 1) res += " ";
     return res;
 }
 
-// Efectue la règle du swap si le joueur 2 veut le faire
+// Effectue la règle du swap si le joueur 2 veut le faire
 void swap(Jeu partie) {
     if (wantSwap()) {
-        replacePos(partie);
-        // addHistory(coup); // Ajout historique
+        replacePos(partie, partie.joueur);
         partie.joueur = 3 - partie.joueur;
         partie.tour += 1;
         majEcran(partie, "Coup enregisté, au tour du joueur suivant");
+        if (ENRESITRERPARTIE) {
+            saveCoup(partie, partie.coupActuel);
+            storeGameHistory(partie);
+        }
         nouveauTour(partie);
     } else placement(partie);
 }
@@ -157,10 +262,37 @@ boolean wantSwap() {
 }
 
 // Change le coup du joueur un par un pion du joueur 2 lors du swap
-void replacePos(Jeu partie) {
+void replacePos(Jeu partie, int joueur) {
     for (int i = 0; i < partie.arene.length; i++) {
         for (int j = 0; j < partie.arene[0].length; j++) {
-            if (partie.arene[i][j] != 0) partie.arene[i][j] = partie.joueur;
+            if (partie.arene[i][j] != 0) {
+                partie.arene[i][j] = joueur;
+                if (joueur == 1) { // joueur 1 swap
+                    partie.playerTwo.grid[i][j] = 0;
+                    partie.playerOne.grid[i][j] = partie.playerOne.counter;
+                    if (i == 0 && j == 0) {
+                        partie.playerTwo.firstLine[i] = 0;
+                        partie.playerOne.firstLine[j] = partie.playerOne.counter;
+                    } else if (j == 0) {
+                        partie.playerTwo.firstLine[i] = 0;
+                    } else if (i == 0) {
+                        partie.playerOne.firstLine[j] = partie.playerOne.counter;
+                    }
+                    partie.playerOne.counter++;
+                } else { // joueur 2 swap
+                    partie.playerOne.grid[i][j] = 0;
+                    partie.playerTwo.grid[i][j] = partie.playerTwo.counter;
+                    if (i == 0 && j == 0) {
+                        partie.playerOne.firstLine[j] = 0;
+                        partie.playerTwo.firstLine[i] = partie.playerTwo.counter;
+                    } else if (j == 0) {
+                        partie.playerTwo.firstLine[i] = partie.playerTwo.counter;
+                    } else if (i == 0) {
+                        partie.playerOne.firstLine[j] = 0;
+                    }
+                    partie.playerTwo.counter++;
+                }
+            }
         }
     }
 }
@@ -177,7 +309,7 @@ void placement(Jeu partie) {
         print("/!\\ Le coup saisi est en dehors du plateau, veuillez recommencer.");
         placement(partie);
     } else {
-        afficherArene(partie);
+        // afficherArene(partie); //balise affichage
         jouerCoup(partie, partie.coupActuel);
     }
 }
@@ -205,7 +337,14 @@ boolean getConfirm(Jeu partie) {
     majEcran(
             partie,
             "Votre coup est affiché à l'écran avec un 'X'\nSi vous ne voyez pas de 'X', c'est que votre coup doit être en dehors du plateau.");
-    String msg = "[Joueur " + partie.joueur+ "]\nConfirmer le coup en L"+ (partie.coupActuel.li + 1)+ ",C" + (partie.coupActuel.col + 1)+ " ? (oui / non)\n=> Votre position est affichée sur le plateau";
+    String msg =
+            "[Joueur "
+                    + partie.joueur
+                    + "]\nConfirmer le coup en L"
+                    + (partie.coupActuel.li + 1)
+                    + ",C"
+                    + (partie.coupActuel.col + 1)
+                    + " ? (oui / non)\n=> Votre position est affichée sur le plateau";
     String s = readString(msg);
     boolean confirm = false;
     while (equal(s, "oui") && equal(s, "non")) {
@@ -221,20 +360,57 @@ void majEcran(Jeu partie, String s) {
     clear();
     afficherArene(partie);
     println(s); // balise: fonction bloc d'affichage
+    // printPlayersTab(partie); // Fonction de debug
     sleep(250);
 }
 
+// Fonction de debug pour afficher les grilles de vérification de victoire
+void printPlayersTab(Jeu partie) {
+    println("PlayerOne       PlayerTwo");
+    for (int i = 0; i < TAILLE; i++) {
+        for (int j = 0; j < TAILLE; j++) {
+            print(partie.playerOne.grid[i][j]);
+        }
+        print("     ");
+        for (int j = 0; j < TAILLE; j++) {
+            print(partie.playerTwo.grid[i][j]);
+        }
+        println();
+    }
+    println("PlayerOne       PlayerTwo");
+    for (int i = 0; i < TAILLE; i++) {
+        print(partie.playerOne.firstLine[i]);
+    }
+    print("     ");
+    for (int i = 0; i < TAILLE; i++) {
+        print(partie.playerTwo.firstLine[i]);
+    }
+}
+
 // Joue le coup s'il est valide et poursuit la partie, sinon l'annule ou le met fin à la partie
-// dépendant des paramètres
+// dépendant des paramêtres
 void jouerCoup(Jeu partie, Coup coup) {
     if (estValide(partie.arene, coup.li, coup.col)) { // Si valide
         partie.arene[coup.li][coup.col] = partie.joueur;
-        // addHistory(coup); // Ajout historique
-        partie.joueur = 3 - partie.joueur;
-        partie.tour += 1;
-        majEcran(partie, "Coup enregisté, au tour du joueur suivant");
-        nouveauTour(partie);
-    } else if (ERREURAUTORISEE) { // defaite auto y/n
+        jouerCoupPlayer(partie, coup.li, coup.col);
+        mergeGrid(partie);
+        if (ENRESITRERPARTIE) {
+            saveCoup(partie, coup);
+            storeGameHistory(partie);
+        }
+        if (isVictoire(partie)) {
+            partie.fonctionne = false;
+            majEcran(
+                    partie,
+                    "Coup gagnant !\nLe joueur " + partie.joueur + " remporte la partie !");
+        } else {
+            partie.joueur = 3 - partie.joueur;
+            partie.tour += 1;
+            majEcran(partie, "Coup enregisté, au tour du joueur suivant");
+            nouveauTour(partie);
+        }
+    } else if (ERREURAUTORISEE) { // Si le coup n'est pas valide mais que les erreurs sont
+        // autorisées
         coup.li = -1;
         coup.col = -1;
         majEcran(
@@ -243,7 +419,7 @@ void jouerCoup(Jeu partie, Coup coup) {
                         + partie.joueur
                         + ", le coup que vous avez saisi est invalide.\nVeuillez recommencer !");
         placement(partie);
-    } else {
+    } else { // le coup est incorrecte et les erreurs non autorisées
         partie.fonctionne = false;
         majEcran(
                 partie,
@@ -266,4 +442,353 @@ void nouveauTour(Jeu partie) {
     partie.coupActuel = new Coup();
     partie.coupActuel.joueur = partie.joueur;
     partie.coupActuel.numero = partie.tour;
+}
+
+////////// Vérification de victoire //////////
+
+// Ajoute le coup du joueur sur son plateau individuel
+void jouerCoupPlayer(Jeu partie, int li, int col) {
+    if (partie.joueur == 1) {
+        partie.playerOne.grid[li][col] = partie.playerOne.counter;
+        if (li == 0) {
+            partie.playerOne.firstLine[col] = partie.playerOne.counter;
+        }
+        partie.playerOne.counter++;
+        spread(partie.playerOne.grid, li, col);
+    } else {
+        partie.playerTwo.grid[li][col] = partie.playerTwo.counter;
+        if (col == 0) {
+            partie.playerTwo.firstLine[li] = partie.playerTwo.counter;
+        }
+        partie.playerTwo.counter++;
+        spread(partie.playerTwo.grid, li, col);
+    }
+}
+
+// Répend l'identité de la cellule à ses voisins s'ils éxistent
+void spread(int[][] tab, int i, int j) {
+    if (i == 0 && j == 0) { // Angle supérieur gauche
+        println("Angle sup g: L" + i + ",C" + j);
+        if (tab[i][j + 1] != 0 && tab[i][j + 1] != tab[i][j]) {
+            tab[i][j + 1] = tab[i][j];
+            spread(tab, i, j + 1);
+        }
+        if (tab[i + 1][j] != 0 && tab[i + 1][j] != tab[i][j]) {
+            tab[i + 1][j] = tab[i][j];
+            spread(tab, i + 1, j);
+        }
+    } else if (i == tab.length - 1 && j == 0) { // Angle inférieur gauche
+        println("Angle inf g: L" + i + ",C" + j);
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i - 1, j);
+        }
+        if (tab[i - 1][j + 1] != 0 && tab[i - 1][j + 1] != tab[i][j]) {
+            tab[i - 1][j + 1] = tab[i][j];
+            spread(tab, i - 1, j + 1);
+        }
+        if (tab[i][j + 1] != 0 && tab[i][j + 1] != tab[i][j]) {
+            tab[i][j + 1] = tab[i][j];
+            spread(tab, i, j + 1);
+        }
+    } else if (i == tab.length - 1 && j == tab.length - 1) { // Angle inférieur droit
+        println("Angle inf d: L" + i + ",C" + j);
+        if (tab[i][j - 1] != 0 && tab[i][j - 1] != tab[i][j]) {
+            tab[i][j - 1] = tab[i][j];
+            spread(tab, i, j - 1); // here j+1
+        }
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i - 1, j);
+        }
+    } else if (i == 0 && j == tab.length - 1) { // Angle supérieur droit
+        println("Angle sup d: L" + i + ",C" + j);
+        if (tab[i + 1][j] != 0 && tab[i + 1][j] != tab[i][j]) {
+            tab[i + 1][j] = tab[i][j];
+            spread(tab, i + 1, j);
+        }
+        if (tab[i + 1][j - 1] != 0 && tab[i + 1][j - 1] != tab[i][j]) {
+            tab[i + 1][j - 1] = tab[i][j];
+            spread(tab, i + 1, j - 1);
+        }
+        if (tab[i][j - 1] != 0 && tab[i][j - 1] != tab[i][j]) {
+            tab[i][j - 1] = tab[i][j];
+            spread(tab, i, j - 1);
+        }
+    } else if (j == 0) { // Côté gauche
+        println("Côté g: L" + i + ",C" + j);
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i - 1, j);
+        }
+        if (tab[i - 1][j + 1] != 0 && tab[i - 1][j + 1] != tab[i][j]) {
+            tab[i - 1][j + 1] = tab[i][j];
+            spread(tab, i - 1, j + 1);
+        }
+        if (tab[i][j + 1] != 0 && tab[i][j + 1] != tab[i][j]) {
+            tab[i][j + 1] = tab[i][j];
+            spread(tab, i, j + 1);
+        }
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i + 1, j);
+        }
+    } else if (i == tab.length - 1) { // Côté inférieur
+        println("Côté inf: L" + i + ",C" + j);
+        if (tab[i][j - 1] != 0 && tab[i][j - 1] != tab[i][j]) {
+            tab[i][j - 1] = tab[i][j];
+            spread(tab, i, j - 1);
+        }
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i - 1, j);
+        }
+        if (tab[i - 1][j + 1] != 0 && tab[i - 1][j + 1] != tab[i][j]) {
+            tab[i - 1][j + 1] = tab[i][j];
+            spread(tab, i - 1, j + 1);
+        }
+        if (tab[i][j + 1] != 0 && tab[i][j + 1] != tab[i][j]) {
+            tab[i][j + 1] = tab[i][j];
+            spread(tab, i, j + 1);
+        }
+    } else if (j == tab.length - 1) { // Côté droit
+        println("Côté d: L" + i + ",C" + j);
+        if (tab[i + 1][j] != 0 && tab[i + 1][j] != tab[i][j]) {
+            tab[i + 1][j] = tab[i][j];
+            spread(tab, i + 1, j);
+        }
+        if (tab[i + 1][j - 1] != 0 && tab[i + 1][j - 1] != tab[i][j]) {
+            tab[i + 1][j - 1] = tab[i][j];
+            spread(tab, i + 1, j - 1);
+        }
+        if (tab[i][j - 1] != 0 && tab[i][j - 1] != tab[i][j]) {
+            tab[i][j - 1] = tab[i][j];
+            spread(tab, i, j - 1);
+        }
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i - 1, j);
+        }
+    } else if (i == 0) { // Côté supérieur
+        println("Côté sup: L" + i + ",C" + j);
+        if (tab[i][j + 1] != 0 && tab[i][j + 1] != tab[i][j]) {
+            tab[i][j + 1] = tab[i][j];
+            spread(tab, i, j + 1);
+        }
+        if (tab[i + 1][j] != 0 && tab[i + 1][j] != tab[i][j]) {
+            tab[i + 1][j] = tab[i][j];
+            spread(tab, i + 1, j);
+        }
+        if (tab[i + 1][j - 1] != 0 && tab[i + 1][j - 1] != tab[i][j]) {
+            tab[i + 1][j - 1] = tab[i][j];
+            spread(tab, i + 1, j - 1);
+        }
+        if (tab[i][j - 1] != 0 && tab[i][j - 1] != tab[i][j]) {
+            tab[i][j - 1] = tab[i][j];
+            spread(tab, i, j - 1);
+        }
+    } else { // if (i != 0 && i != tab.length && j != 0 && j != tab.length){ // Coeur
+        println("Coeur : L" + i + ",C" + j);
+        if (tab[i - 1][j] != 0 && tab[i - 1][j] != tab[i][j]) {
+            tab[i - 1][j] = tab[i][j];
+            spread(tab, i - 1, j);
+        }
+        if (tab[i - 1][j + 1] != 0 && tab[i - 1][j + 1] != tab[i][j]) {
+            tab[i - 1][j + 1] = tab[i][j];
+            spread(tab, i - 1, j + 1);
+        }
+        if (tab[i][j + 1] != 0 && tab[i + 1][j] != tab[i][j]) {
+            tab[i][j + 1] = tab[i][j];
+            spread(tab, i, j + 1);
+        }
+        if (tab[i + 1][j] != 0 && tab[i + 1][j] != tab[i][j]) {
+            tab[i + 1][j] = tab[i][j];
+            spread(tab, i + 1, j);
+        }
+        if (tab[i + 1][j - 1] != 0 && tab[i + 1][j - 1] != tab[i][j]) {
+            tab[i + 1][j - 1] = tab[i][j];
+            spread(tab, i + 1, j - 1);
+        }
+        if (tab[i][j - 1] != 0 && tab[i][j - 1] != tab[i][j]) {
+            tab[i][j - 1] = tab[i][j - 1];
+            spread(tab, i, j - 1);
+        }
+    }
+}
+
+// Copie les premières lignes de partie.playerN.grid sur partie.playerN.firstLine
+// Pour partager les possibles changements effectués lors du spread
+void mergeGrid(Jeu partie) {
+    if (partie.joueur == 1) {
+        for (int i = 0; i < partie.playerOne.grid.length; i++) {
+            partie.playerOne.firstLine[i] = partie.playerOne.grid[0][i];
+        }
+        ;
+    } else {
+        for (int i = 0; i < partie.playerTwo.grid.length; i++) {
+            partie.playerTwo.firstLine[i] = partie.playerTwo.grid[i][0];
+        }
+    }
+}
+
+// Vérifie si les deux côtés de l'arène sont reliées entre elle par les pions d'un joueur
+boolean isVictoire(Jeu partie) {
+    boolean vic = false;
+    if (partie.joueur == 1) {
+        vic = checkVictoireOne(partie.playerOne);
+    } else {
+        vic = checkVictoireTwo(partie.playerTwo);
+    }
+    return vic;
+}
+
+// Vérifie si pour chaque pion de la première ligne du 1er joueur, il est présent ou non dans la
+// dernière
+boolean checkVictoireOne(Player joueur) {
+    boolean chk = false;
+    for (int i = 0; i < joueur.grid.length; i++) {
+        if (joueur.grid[joueur.grid.length - 1][i] != 0
+                && present(joueur.firstLine, joueur.grid[joueur.grid.length - 1][i]))
+            chk = true;
+    }
+    return chk;
+}
+
+// Vérifie si pour chaque pion de la première ligne du 2eme joueur, il est présent ou non dans
+// la dernière
+boolean checkVictoireTwo(Player joueur) {
+    boolean chk = false;
+    for (int i = 0; i < joueur.grid.length; i++) {
+        if (joueur.grid[i][joueur.grid.length - 1] != 0
+                && present(joueur.firstLine, joueur.grid[i][joueur.grid.length - 1]))
+            chk = true;
+    }
+    return chk;
+}
+
+// Vérifie si v est dans tab
+boolean present(int[] tab, int v) {
+    boolean pres = false;
+    for (int i = 0; i < tab.length; i++) {
+        if (tab[i] == v) pres = true;
+    }
+    return pres;
+}
+
+//////////// Écriture des fichiers ////////////
+
+// Enregistre un message formaté pour le fichier local de la partie
+void saveCoup(Jeu partie, Coup c) {
+    partie.historique[c.numero] = "" + c.numero + " (" + c.li + "," + c.col + ") " + c.joueur;
+}
+
+// Sauvegarde les anciens coups de la partie dans le fichier renseigner
+void storeGameHistory(Jeu partie) {
+    java.io.OutputStreamWriter fecriture;
+    fecriture = openOut(FICHIER + ".game"); // Saisir le fichier ici
+    for (int i = 0; i < partie.tour; i++) {
+        printlnToFile(fecriture, partie.historique[i]);
+    }
+    closeOut(fecriture);
+}
+
+///////////// Lecture des fichiers /////////////
+
+// Calcul la taille de la partie pour optimiser la taille de l'historique à charger
+// Fonctionnement : compte le nombre de ligne du fichier passé en paramètre
+int nbCoupPartieLocale(String f) {
+    java.util.Scanner flecture;
+    flecture = openIn(f);
+    int nbCoup = 0;
+    while (!equal(readStringFromFile(flecture), "")) {
+        nbCoup++;
+    }
+    closeIn(flecture);
+    return nbCoup;
+}
+
+// Récupère chaque ligne du fichier passer en paramètre et les enregistre dans une cellule d'un
+// tableau
+String[] readGameString(String f) {
+    String[] game = new String[nbCoupPartieLocale(f)];
+    java.util.Scanner flecture;
+    flecture = openIn(f);
+    for (int i = 0; i < game.length; i++) {
+        game[i] = readStringFromFile(flecture);
+    }
+    closeIn(flecture);
+    return game;
+}
+
+// Convertit chaque string du tableau entré en paramètre en un Coup() enregistré dans un tableau
+// de coup en sortie
+Coup[] convertStringToCoup(String[] game) {
+    Coup[] coups = new Coup[game.length];
+    for (int i = 0; i < game.length; i++) {
+        coups[i] = getCoup(game[i]);
+    }
+    return coups;
+}
+
+// Parcours un string formaté pour retourner le Coup() correspondant
+Coup getCoup(String s) {
+    Coup coup = new Coup();
+    int nbSpace = 0;
+    int tempNbr = 0;
+    for (int i = 0; i < stringLength(s); i++) {
+        if (equal(stringNth(s, i), " ")) {
+            nbSpace++;
+            if (nbSpace == 1) {
+                coup.numero = getInt(s, 0, i);
+            } else if (nbSpace == 2) {
+                coup.joueur = getInt(s, i + 1, stringLength(s));
+            }
+        } else if (equal(stringNth(s, i), "(")) {
+            tempNbr = i + 1;
+        } else if (equal(stringNth(s, i), ",")) {
+            coup.li = getInt(s, tempNbr, i);
+            tempNbr = i + 1;
+        } else if (equal(stringNth(s, i), ")")) {
+            coup.col = getInt(s, tempNbr, i);
+        }
+    }
+    return coup;
+}
+
+// Récupère une partie d'un string pour la convertir en integer
+int getInt(String s, int d, int f) {
+    String res = "";
+    for (int i = d; i < f; i++) {
+        res += stringNth(s, i);
+    }
+    return Integer.parseInt(res);
+}
+
+/////// Lecture d'une partie enregistrée ///////
+
+void playSavedGame(Jeu partie, String fichier) {
+    partie.historique = readGameString(fichier + ".game");
+    for (int i = 0; i < partie.historique.length; i++) {
+        jouerCoupEcrit(partie, getCoup(partie.historique[i]));
+        sleep(DELAIS);
+    }
+    majEcran(partie, "Lecture de " + fichier + ".game terminée.");
+    // voir pour pause/ previous-next
+}
+
+void jouerCoupEcrit(Jeu partie, Coup coup) {
+    if (coup.li == -1 && coup.col == -1 && coup.numero == 1 && coup.joueur == 2) { // swap
+        replacePos(partie, coup.joueur);
+        majEcran(partie, "Le joueur 2 a swap !");
+    } else {
+        partie.arene[coup.li][coup.col] = coup.joueur;
+        majEcran(
+                partie,
+                "Le joueur "
+                        + coup.joueur
+                        + " a joué en L"
+                        + (coup.li + 1)
+                        + ",C"
+                        + (coup.col + 1));
+    }
 }
